@@ -1,3 +1,4 @@
+
 //===--- tools/clang-repl/ClangRepl.cpp - clang-repl - the Clang REPL -----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -27,7 +28,11 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+
+
 #include <iostream>
+#include <vector>
 #include <optional>
 
 
@@ -40,18 +45,6 @@ LLVM_ATTRIBUTE_USED int __lsan_is_turned_off() { return 1; }
 #endif
 
 
-static llvm::cl::list<std::string>
-    ClangArgs("Xcc",
-              llvm::cl::desc("Argument to pass to the CompilerInvocation"),
-              llvm::cl::CommaSeparated);
-
-
-static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
-                                              llvm::cl::Hidden);
-/*
-static llvm::cl::list<std::string> OptInputs(llvm::cl::Positional,
-                                             llvm::cl::desc("[code to run]"));
-*/
 
 static void LLVMErrorHandler(void *UserData, const char *Message,
                              bool GenCrashDiag) {
@@ -163,6 +156,9 @@ public:
         if (DiagLevel >= clang::DiagnosticsEngine::Error) {
             std::cerr << "Parser/Compiler Error: " << OutStr.str().str() << "\n";
         }
+        else if(DiagLevel == clang::DiagnosticsEngine::Warning) {
+            std::cout << "Parser/Compiler Warning: " << OutStr.str().str() << "\n";
+        }
     }
 
     void clear() override {
@@ -221,21 +217,15 @@ std::string getASTString(const clang::PartialTranslationUnit &PTU) {
 
 
 // Pointer Globals
-clang::CompilerInstance* CI = nullptr;
+// clang::CompilerInstance* CI = nullptr;
 clang::IncrementalCompilerBuilder* CB = nullptr;
 clang::Interpreter* Interp = nullptr;
 
 std::vector<const char *>* ClangArgv = nullptr;
 
+extern "C" {
+
 int setUp() {
-    // Set Default Commands
-  ClangArgs.setInitialValues({
-    "--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14",
-    "--std=c++17",
-    // "-emit-llvm",
-  });
-
-
 
   ExitOnErr.setBanner("clang-repl: ");
 
@@ -244,31 +234,21 @@ int setUp() {
 
   // llvm::llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
 
-  ClangArgv = new std::vector<const char *>(ClangArgs.size());
+  // Set Default Commands
+  ClangArgv = new std::vector<const char *>({
+    "-O0",
+    "--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14",
+    "--std=c++17",
+    // "-emit-llvm",
+  });
 
-  // std::vector<const char *> ClangArgv(ClangArgs.size());
 
-
-  // ClangArgs.push_back("--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14");
-
-  std::transform(ClangArgs.begin(), ClangArgs.end(), ClangArgv->begin(),
-                 [](const std::string &s) -> const char * { return s.data(); });
-  // Initialize all targets (required for device offloading)
-  llvm::InitializeAllTargetInfos();
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-
-  // TODO: DO WE NEED THIS ONE?
-  if (OptHostSupportsJit) {
-    auto J = llvm::orc::LLJITBuilder().create();
-    if (J)
-      llvm::outs() << "true\n";
-    else {
-      llvm::consumeError(J.takeError());
-      llvm::outs() << "false\n";
-    }
-    return 0;
+  {
+    // Initialize all targets (required for device offloading)
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmPrinters();
   }
 
   CB = new clang::IncrementalCompilerBuilder();
@@ -292,10 +272,31 @@ int setUp() {
 
 
   std::unique_ptr<clang::Interpreter> _Interp = ExitOnErr(clang::Interpreter::create(std::move(_CI)));
+  /*
+{
+    auto EE = _Interp->getExecutionEngine();
+    if (EE) {
+      std::cout << "EEEEEE" << std::endl;
+      auto Generator =
+          llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+              EE->getDataLayout().getGlobalPrefix());
 
-  // Ready to release once these are used
-  CI = _CI.release();
-  Interp = _Interp.release();
+      if (!Generator) {
+        llvm::logAllUnhandledErrors(Generator.takeError(), llvm::errs(),
+                                    "Failed to create symbol generator: ");
+        exit(0);
+      } else {
+        EE->getMainJITDylib().addGenerator(std::move(*Generator));
+      }
+    }
+  }
+  */
+
+  
+  // Ready to release once these are used and are no further required
+  {
+    Interp = _Interp.release();
+  }
 
   /*
   for (const std::string &input : OptInputs) {
@@ -314,13 +315,23 @@ int setUp() {
 
   bool HasError = false;
 
-  llvm::Error Err = Interp->ParseAndExecute(R"(
-    #include <iostream>
-    #include <vector>
+  std::initializer_list<const char*> includes = {
+    "#include <iostream>",
+    "#include <vector>",
+  };
 
-    )");
+  for(const char* include : includes) {
+    llvm::Error Err = Interp->ParseAndExecute(include);
 
+    if(Err) {
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "my error format: ");
+      return 1;
+    }
+  }
+
+  #ifdef CPP_REPL_VERBOSE
   std::cout << "SETUP DONE" << std::endl;
+  #endif
 
 
   return 0;
@@ -338,7 +349,7 @@ int parseAndExecute(const char* input) {
       llvm::logAllUnhandledErrors(std::move(E), llvm::errs(), "my error format: ");
       return 1;
     } else {
-      std::cout << getASTString(translation_unit.get()) << std::endl;
+      // std::cout << getASTString(translation_unit.get()) << std::endl;
       llvm::Error Err = Interp->Execute(translation_unit.get());
     }
     /*
@@ -351,6 +362,9 @@ int parseAndExecute(const char* input) {
     return 0;
 }
 
+}
+
+/*
 int main(int argc, const char **argv) {
 
     setUp();
@@ -394,3 +408,4 @@ int main(int argc, const char **argv) {
   // return checkDiagErrors(Interp->getCompilerInstance(), HasError);
   return 0;
 }
+*/
