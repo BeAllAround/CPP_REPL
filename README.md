@@ -23,5 +23,6 @@ Here is a showcase of what interacting with CPP_REPL feels like.
 
 This project is inspired by the [LLVM Compiler Infrastructure Project](https://github.com/llvm/llvm-project).
 
-It integrates directly with LLVM’s [clang-repl](https://github.com/llvm/llvm-project/tree/main/clang/tools/clang-repl) (the official Clang JIT / REPL).  
+It integrates directly with LLVM's [clang-repl](https://github.com/llvm/llvm-project/tree/main/clang/tools/clang-repl) (the official Clang JIT / REPL).
+
 The C++ REPL itself is _**NOT**_ built or implemented from scratch ***in any shape or form***; this project embeds and drives the existing clang-repl infrastructure.
