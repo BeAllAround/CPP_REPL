@@ -19,6 +19,8 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Sema.h"
 
+#include "clang/Frontend/TextDiagnosticPrinter.h"
+
 
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
@@ -142,16 +144,61 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
 */
 
 
+
+// See: https://clang.llvm.org/doxygen/CompilerInstance_8cpp_source.html and search for "createDiagnostics" and "getDiagnosticOpts"
+// See:
+// - https://clang.llvm.org/doxygen/classclang_1_1TextDiagnosticPrinter.html
+// - https://clang.llvm.org/doxygen/classclang_1_1DiagnosticOptions.html
+// - https://clang.llvm.org/doxygen/TextDiagnosticPrinter_8cpp_source.html
+class MyCustomDiagConsumer : public clang::TextDiagnosticPrinter {
+public:
+
+    MyCustomDiagConsumer(clang::DiagnosticOptions &Opts) : TextDiagnosticPrinter(llvm::errs(), &Opts) {
+    }
+
+    void HandleDiagnostic(clang::DiagnosticsEngine::Level DiagLevel,
+                          const clang::Diagnostic &Info) override {
+
+        // Call the default handler to keep standard behavior
+        TextDiagnosticPrinter::HandleDiagnostic(DiagLevel, Info);
+
+    }
+
+    void clear() override {
+      Msgs.clear();
+      Errors.clear();
+      TextDiagnosticPrinter::clear();
+    }
+
+    std::vector<llvm::SmallString<32>> Msgs;
+    std::vector<llvm::SmallString<32>> Errors;
+};
+
+
+/*
 class MyCustomDiagConsumer : public clang::DiagnosticConsumer {
 public:
+    MyCustomDiagConsumer(clang::DiagnosticOptions &Opts) {
+    }
+
     void HandleDiagnostic(clang::DiagnosticsEngine::Level DiagLevel,
                           const clang::Diagnostic &Info) override {
 
         // Optionally call the default handler to keep standard behavior
         // DiagnosticConsumer::HandleDiagnostic(DiagLevel, Info);
+        // const auto& OS = llvm::errs();
+        // std::cout << OS.tell() << std::endl;
+
+
+        // Info.getLocation();
+        // Info.getRanges();
+        // Info.getFixItHints();
+        // FullSourceLoc(Info.getLocation(), Info.getSourceManager())
 
         llvm::SmallString<100> OutStr;
         Info.FormatDiagnostic(OutStr);
+
+
 
         if (DiagLevel >= clang::DiagnosticsEngine::Error) {
             std::cerr << "Parser/Compiler Error: " << OutStr.str().str() << "\n";
@@ -170,6 +217,7 @@ public:
     std::vector<llvm::SmallString<32>> Msgs;
     std::vector<llvm::SmallString<32>> Errors;
 };
+*/
 
 void logLLVMError(llvm::Error&& err, const std::string& err_message = "logLLVMError: ") {
    llvm::logAllUnhandledErrors(std::move(err), llvm::errs(), err_message);
@@ -268,7 +316,9 @@ int setUp() {
                                     static_cast<void *>(&_CI->getDiagnostics()));
   // Load any requested plugins.
   _CI->LoadRequestedPlugins();
-  _CI->createDiagnostics(new MyCustomDiagConsumer(), /*ShouldOwnClient=*/true);
+  _CI->createDiagnostics(new MyCustomDiagConsumer(_CI->getDiagnosticOpts()), /*ShouldOwnClient=*/true);
+
+  // _CI->createDiagnostics(); // Default
 
 
   std::unique_ptr<clang::Interpreter> _Interp = ExitOnErr(clang::Interpreter::create(std::move(_CI)));
