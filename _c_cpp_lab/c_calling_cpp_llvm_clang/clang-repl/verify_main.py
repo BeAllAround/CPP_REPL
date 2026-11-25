@@ -37,7 +37,7 @@ if __name__ == '__main__':
     assert setup_ok == 0
 
 
-    cpp_source = "int i = 1; std::cout << i << std::endl;"
+    cpp_source = "int i = 1020; std::cout << i << std::endl;"
     # cpp_source = "int i = 1;"
 
     output = eval_app.parseAndExecute(py_str_to_c_str(cpp_source))
