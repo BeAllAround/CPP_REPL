@@ -13,9 +13,7 @@ This project is based on the concept of building the binary bridge between the C
 
 Here is a showcase of what interacting with CPP_REPL feels like.
 
-
-
-![Alt Text](https://raw.githubusercontent.com/BeAllAround/json-viewer/main/Preview.gif)
+![Alt Text](https://raw.githubusercontent.com/BeAllAround/CPP_REPL/refs/heads/main/Demo/Demo01Gif.gif)
 
 
 
