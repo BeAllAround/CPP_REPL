@@ -1,0 +1,5 @@
+recursive-exclude tests *
+
+# Using graft instead of recursive-include
+# e.g. recursive-include c_repl *.c *.h *.py
+graft c_repl
