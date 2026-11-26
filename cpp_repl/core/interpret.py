@@ -23,7 +23,10 @@ class CppInterpreter:
     def setUp(self):
         setup_ok = self.eval_app.setUp()
 
-        assert setup_ok == 0
+        if(setup_ok != 0):
+            raise RuntimeError("Clang-Repl setup failed")
+
+        return setup_ok
     
     def interpret(self, input_str):
         output = self.eval_app.parseAndExecute(py_str_to_c_str(input_str))
@@ -31,5 +34,6 @@ class CppInterpreter:
         return output
 
     # TODO: IMPLEMENT
-    def cleanUp():
-        pass
+    def cleanUp(self):
+
+        return 0
