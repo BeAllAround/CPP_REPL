@@ -24,7 +24,7 @@ exclude = ["docs", "tests"]
 [project]
 name = "BeAllAround.CPP_REPL"
 version = "0.0.1"
-description = "Experimental Interactive Shell for the C++ Programming Language built using LLVM's ClangRepl Project."
+description = "Interactive Shell for the C++ Programming Language built on top of LLVM's ClangRepl Project."
 readme = "README.md"
 requires-python = ">=3.10"
 

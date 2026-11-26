@@ -1,4 +1,4 @@
-# CPP_REPL: Experimental
+# CPP_REPL: Clang-Repl Integration
 
 ## Overview
 
