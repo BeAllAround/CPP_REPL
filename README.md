@@ -26,7 +26,7 @@ This project is inspired by the [LLVM Compiler Infrastructure Project](https://g
 
 It integrates directly with LLVM's [clang-repl](https://github.com/llvm/llvm-project/tree/main/clang/tools/clang-repl) (the official Clang JIT / REPL).
 
-The C++ REPL itself is _**NOT**_ built or implemented from scratch ***in any shape or form***; this project embeds and drives the existing clang-repl infrastructure.
+The C++ REPL itself is _**NOT**_ built or implemented from scratch ***in any shape or form***; this project embeds and drives the existing clang-repl component.
 
 
 
