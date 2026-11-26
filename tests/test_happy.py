@@ -7,13 +7,6 @@ import unittest
 from cpp_repl.core.interpret import CppInterpreter
 
 
-STR_EMPTY = ''
-# import c_repl.core
-
-# print(c_repl.core)
-# c_repl.core.module1.from_module_func()
-
-
 # TestCase.assertEqual, TestCase.assertTrue, TestCase.assertFalse
 
 def create_node_from_source(_code):
